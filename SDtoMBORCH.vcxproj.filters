@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="SDtoMBORCH.ino" />
+    <None Include="COMMS.ino" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="__vm\.SDtoMBORCH.vsarduino.h">

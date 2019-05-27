@@ -6,9 +6,11 @@
 //  SD card interface - change SD_SELECT for SPI comms
 //  Change pin definitions for specific hardware setup - defined below.
 
+
+
 #include <SdFat.h>
 #include <MD_MIDIFile.h>
-
+#include <I2C_Anything.h>
 //#define USE_MIDI  1
 
 #if USE_MIDI // set up for direct MIDI serial output
@@ -18,6 +20,8 @@
 #define SERIAL_RATE 31250
 
 #else // don't use MIDI to allow printing debug statements
+
+
 
 #define DEBUG(x)  Serial.print(x)
 #define DEBUGX(x) Serial.print(x, HEX)
@@ -41,6 +45,21 @@
 #define WAIT_DELAY    2000 // ms
 
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#define interruptPin 9
+
+int myTrack = 0;
+int myChannel = 0;
+int myData0 = 0;
+int myData1 = 0;
+unsigned int tracksBuffer16x8[10] = { 0,0,0,0,0,0,0,0,0,0 }; //tracks 0 - 8 then currentstep then mutes
+unsigned int midiTracksBuffer16x8[8];
+bool sentAMidiBuffer = false;
+bool isSending = false;
+unsigned long int timeOutStamp = 0;
+unsigned long i2cTimer = 0; //for debug
+bool waitingForTimeOut = false;
+int isMutedInt = 0;
+bool bufferIsReady = false;
 
 // The files in the tune list should be located on the SD card 
 // or an error will occur opening the file and the next in the 
@@ -82,6 +101,7 @@ void midiCallback(midi_event *pev)
 // thru the midi communications interface.
 // This callback is set up in the setup() function.
 {
+
 #if USE_MIDI
 	if ((pev->data[0] >= 0x80) && (pev->data[0] <= 0xe0))
 	{
@@ -91,17 +111,48 @@ void midiCallback(midi_event *pev)
 	else
 		Serial.write(pev->data, pev->size);
 #endif
+	//DEBUG("\n");
+	//DEBUG(millis());
+	//DEBUG("\tM T");
+	//DEBUG(pev->track);
+	//DEBUG(":  Ch ");
+	//DEBUG(pev->channel + 1);
+	//DEBUG(" Data ");
+	//for (uint8_t i = 0; i<pev->size; i++)
+	//{
+	//	DEBUG(pev->data[i]);
+	//	DEBUG(' ');
+	//}
+
+	myTrack = pev->track;
+	myChannel = pev->channel;
+	myData0 = pev->data[0];
+	myData1 = pev->data[1]%16;
+	if (myTrack == 1) {
+		handleMidiFileEvent(myChannel, myData0, myData1);
+	}
+}
+unsigned long int prevMidiEvent = 0;
+void handleMidiFileEvent(int Ch, int data0, int data1) {
+
+
 	DEBUG("\n");
-	DEBUG(millis());
-	DEBUG("\tM T");
-	DEBUG(pev->track);
-	DEBUG(":  Ch ");
-	DEBUG(pev->channel + 1);
-	DEBUG(" Data ");
-	for (uint8_t i = 0; i<pev->size; i++)
-	{
-		DEBUGX(pev->data[i]);
-		DEBUG(' ');
+	DEBUG("CH = ");
+	DEBUG(Ch);
+	DEBUG("  data0 = ");
+	DEBUG(data0);
+	DEBUG("  data1 = ");
+	DEBUG(data1);
+	if (Ch < 8) {
+		if (data0 == 144) { //is a note on
+			if (data1 < 16) {
+				DEBUG("PING");
+				int val = 0b0000000000000001 << data1;
+				tracksBuffer16x8[Ch] = tracksBuffer16x8[Ch] | val;
+				bufferIsReady = true;
+				prevMidiEvent = millis();
+			}
+		}
 	}
 }
 
@@ -114,7 +165,7 @@ void sysexCallback(sysex_event *pev)
 	DEBUG("\nS T");
 	DEBUG(pev->track);
 	DEBUG(": Data ");
-	for (uint8_t i = 0; i<pev->size; i++)
+	for (uint8_t i = 0; i < pev->size; i++)
 	{
 		DEBUGX(pev->data[i]);
 		DEBUG(' ');
@@ -146,7 +197,8 @@ void setup(void)
 	pinMode(READY_LED, OUTPUT);
 	pinMode(SD_ERROR_LED, OUTPUT);
 	pinMode(SMF_ERROR_LED, OUTPUT);
-
+	pinMode(interruptPin, OUTPUT);
+	digitalWrite(interruptPin, HIGH);
 	Serial.begin(SERIAL_RATE);
 
 	DEBUG("\n[MidiFile Play List]");
@@ -198,7 +250,7 @@ void loop(void)
 {
 	int  err;
 
-	for (uint8_t i = 0; i<ARRAY_SIZE(tuneList); i++)
+	for (uint8_t i = 0; i < ARRAY_SIZE(tuneList); i++)
 	{
 		// reset LEDs
 		digitalWrite(READY_LED, LOW);
@@ -223,6 +275,14 @@ void loop(void)
 			{
 				if (SMF.getNextEvent())
 					tickMetronome();
+				//
+				if ((prevMidiEvent < millis())&&bufferIsReady) { // if there was more than a millisecond since last event this needs to go somewhere else that is called all the time
+				
+					DEBUG("PONG");
+					sendTracksBuffer();
+					bufferIsReady = false;
+					clearTracksBuffer();
+				}
 			}
 
 			// done with this one
@@ -233,5 +293,14 @@ void loop(void)
 			digitalWrite(READY_LED, HIGH);
 			delay(WAIT_DELAY);
 		}
+	}
+}
+
+
+void hijackUSBMidiTrackBuffer(byte val, byte slot) {
+	if (!waitingForTimeOut) {
+		clearMidiTracksBuffer();
+		bitSet(midiTracksBuffer16x8[slot], val);				//set corresponding bit in corresponding int in the buffer to be sent
+		sendUsbMidiPackage();
 	}
 }
