@@ -93,6 +93,11 @@ void requestEvent() {  //this is what happens when the microbit asks for a messa
 	isSending = false;
 	digitalWrite(interruptPin, HIGH);
 	Serial.println("handled i2c");
+	Serial.println(tracksBuffer16x8[0]);
+	Serial.println(tracksBuffer16x8[1]);
+	Serial.println(tracksBuffer16x8[2]);
+	clearTracksBuffer();
+	bufferIsReady = false;
 }
 
 void clearTracksBuffer() {

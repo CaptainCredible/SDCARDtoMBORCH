@@ -139,20 +139,26 @@ unsigned long int prevMidiEvent = 0;
 void handleMidiFileEvent(int Ch, int data0, int data1) {
 
 
-	DEBUG("\n");
-	DEBUG("CH = ");
-	DEBUG(Ch);
-	DEBUG("  data0 = ");
-	DEBUG(data0);
-	DEBUG("  data1 = ");
-	DEBUG(data1);
+	//DEBUG("\n");
+	//DEBUG("CH = ");
+	//DEBUG(Ch);
+	//DEBUG("  data0 = ");
+	//DEBUG(data0);
+	//DEBUG("  data1 = ");
+	//DEBUG(data1);
 	if (Ch < 8) {
 		if (data0 == 144) { //is a note on
 			if (data1 < 16) {
-				DEBUG("PING");
+				DEBUG("DATA1 = ");
+				DEBUG(data1);
 				int val = 0b0000000000000001 << data1;
-				tracksBuffer16x8[Ch] = tracksBuffer16x8[Ch] | val;
+				//tracksBuffer16x8[Ch] = tracksBuffer16x8[Ch] | val;
+				bitSet(tracksBuffer16x8[Ch], data1);
 				bufferIsReady = true;
+				DEBUG("BUFFER CH = ");
+				DEBUG(Ch);
+				DEBUG("   ...   ");
+				Serial.println(tracksBuffer16x8[Ch],BIN);
 				prevMidiEvent = millis();
 			}
 		}
@@ -284,9 +290,9 @@ void loop(void)
 				checkTimeOut();
 				if ((prevMidiEvent < millis())&&bufferIsReady) { // if there was more than a millisecond since last event this needs to go somewhere else that is called all the time
 				
-					DEBUG("PONG");
-					DEBUG("  ");
-					DEBUG("  ");
+					//DEBUG("PONG");
+					//DEBUG("  ");
+					//DEBUG("  ");
 					sendTracksBuffer();
 					bufferIsReady = false;
 					clearTracksBuffer();
