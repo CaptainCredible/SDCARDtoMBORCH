@@ -11,6 +11,7 @@
 #include <SdFat.h>
 #include <MD_MIDIFile.h>
 #include <I2C_Anything.h>
+#include <Wire.h>
 //#define USE_MIDI  1
 
 #if USE_MIDI // set up for direct MIDI serial output
@@ -66,7 +67,9 @@ bool bufferIsReady = false;
 // list will be opened (skips errors).
 char *tuneList[] =
 {
-	"bass.mid"
+	"bass.mid",
+	"test.mid"
+	
 	//"LOOPDEMO.MID",  // simplest and shortest file
 	//"ELISE.MID",
 	//"TWINKLE.MID",
@@ -128,7 +131,7 @@ void midiCallback(midi_event *pev)
 	myChannel = pev->channel;
 	myData0 = pev->data[0];
 	myData1 = pev->data[1]%16;
-	if (myTrack == 1) {
+	if (myTrack == 0) {
 		handleMidiFileEvent(myChannel, myData0, myData1);
 	}
 }
@@ -202,6 +205,8 @@ void setup(void)
 	Serial.begin(SERIAL_RATE);
 
 	DEBUG("\n[MidiFile Play List]");
+	Wire.begin(8);                // join i2c bus with address #8
+	Wire.onRequest(requestEvent); // register event
 
 	// Initialize SD
 	if (!SD.begin(SD_SELECT, SPI_FULL_SPEED))
@@ -276,9 +281,12 @@ void loop(void)
 				if (SMF.getNextEvent())
 					tickMetronome();
 				//
+				checkTimeOut();
 				if ((prevMidiEvent < millis())&&bufferIsReady) { // if there was more than a millisecond since last event this needs to go somewhere else that is called all the time
 				
 					DEBUG("PONG");
+					DEBUG("  ");
+					DEBUG("  ");
 					sendTracksBuffer();
 					bufferIsReady = false;
 					clearTracksBuffer();
