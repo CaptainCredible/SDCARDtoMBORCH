@@ -295,7 +295,7 @@ void loop(void)
 					//DEBUG("  ");
 					sendTracksBuffer();
 					bufferIsReady = false;
-					clearTracksBuffer();
+					//clearTracksBuffer();
 				}
 			}
 
