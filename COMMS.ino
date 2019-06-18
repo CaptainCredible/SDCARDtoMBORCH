@@ -119,6 +119,7 @@ void checkTimeOut() {
 	if (millis() - timeOutStamp > timeOut && isSending) {
 		digitalWrite(interruptPin, HIGH);
 		isSending = false;
+		//clearTracksBuffer();
 		Serial.println(" i2c TIMEOUT! ");
 		i2cFails++;
 	}
