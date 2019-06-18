@@ -106,6 +106,12 @@ void clearTracksBuffer() {
 	}
 }
 
+void clearCommandsBuffer() {
+	for (byte i = 0; i < 8; i++) {								//for every channel entry in buffer
+		commandsBuffer[i] = 0;							// clear buffer
+	}
+}
+
 void clearMidiTracksBuffer() {									//also sets sentAMidiBuffer to false
 	for (byte i = 0; i < 8; i++) {								//for every channel entry in buffer
 		midiTracksBuffer16x8[i] = 0;							// clear buffer
@@ -115,7 +121,7 @@ void clearMidiTracksBuffer() {									//also sets sentAMidiBuffer to false
 
 
 #define timeOut  10
-void checkTimeOut() {
+void checkI2CTimeOut() {
 	if (millis() - timeOutStamp > timeOut && isSending) {
 		digitalWrite(interruptPin, HIGH);
 		isSending = false;

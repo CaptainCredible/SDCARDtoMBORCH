@@ -14,6 +14,14 @@
 #include <Wire.h>
 //#define USE_MIDI  1
 
+//Buttons: 
+#define clockButt 5U
+#define stopButt  6U
+#define threeButt  7U
+#define twoButt  8U
+#define oneButt  19U
+#define chimeSwitch 4U
+
 #if USE_MIDI // set up for direct MIDI serial output
 
 #define DEBUG(x)
@@ -38,10 +46,10 @@
 #define  SD_SELECT  10
 
 // LED definitions for user indicators
-#define READY_LED     7 // when finished
-#define SMF_ERROR_LED 6 // SMF error
-#define SD_ERROR_LED  5 // SD error
-#define BEAT_LED      6 // toggles to the 'beat'
+//#define READY_LED     7 // when finished
+//#define SMF_ERROR_LED 6 // SMF error
+//#define SD_ERROR_LED  5 // SD error
+#define BEAT_LED      18 // toggles to the 'beat'
 
 #define WAIT_DELAY    2000 // ms
 
@@ -52,6 +60,7 @@ int myTrack = 0;
 int myChannel = 0;
 int myData0 = 0;
 int myData1 = 0;
+unsigned int commandsBuffer[10] = { 0,0,0,0,0,0,0,0,0,0 }; //USE MUTES FOR BUTTONS!!!!!! bit 0 = resite time, bit 1 = hourly chimes on,     
 unsigned int tracksBuffer16x8[10] = { 0,0,0,0,0,0,0,0,0,0 }; //tracks 0 - 8 then currentstep then mutes
 unsigned int midiTracksBuffer16x8[8];
 bool sentAMidiBuffer = false;
@@ -61,6 +70,7 @@ unsigned long i2cTimer = 0; //for debug
 bool waitingForTimeOut = false;
 int isMutedInt = 0;
 bool bufferIsReady = false;
+unsigned long int prevMidiEvent = 0;
 
 // The files in the tune list should be located on the SD card 
 // or an error will occur opening the file and the next in the 
@@ -69,7 +79,7 @@ char *tuneList[] =
 {
 	"bass.mid",
 	"test.mid"
-	
+
 	//"LOOPDEMO.MID",  // simplest and shortest file
 	//"ELISE.MID",
 	//"TWINKLE.MID",
@@ -130,22 +140,13 @@ void midiCallback(midi_event *pev)
 	myTrack = pev->track;
 	myChannel = pev->channel;
 	myData0 = pev->data[0];
-	myData1 = pev->data[1]%16;
+	myData1 = pev->data[1] % 16;
 	if (myTrack == 0) {
 		handleMidiFileEvent(myChannel, myData0, myData1);
 	}
 }
-unsigned long int prevMidiEvent = 0;
+
 void handleMidiFileEvent(int Ch, int data0, int data1) {
-
-
-	//DEBUG("\n");
-	//DEBUG("CH = ");
-	//DEBUG(Ch);
-	//DEBUG("  data0 = ");
-	//DEBUG(data0);
-	//DEBUG("  data1 = ");
-	//DEBUG(data1);
 	if (Ch < 8) {
 		if (data0 == 144) { //is a note on
 			if (data1 < 16) {
@@ -158,7 +159,7 @@ void handleMidiFileEvent(int Ch, int data0, int data1) {
 				DEBUG("BUFFER CH = ");
 				DEBUG(Ch);
 				DEBUG("   ...   ");
-				Serial.println(tracksBuffer16x8[Ch],BIN);
+				Serial.println(tracksBuffer16x8[Ch], BIN);
 				prevMidiEvent = millis();
 			}
 		}
@@ -203,9 +204,17 @@ void midiSilence(void)
 void setup(void)
 {
 	// Set up LED pins
-	pinMode(READY_LED, OUTPUT);
-	pinMode(SD_ERROR_LED, OUTPUT);
-	pinMode(SMF_ERROR_LED, OUTPUT);
+	pinMode(clockButt, INPUT_PULLUP);
+	pinMode(stopButt, INPUT_PULLUP);
+	pinMode(threeButt, INPUT_PULLUP);
+	pinMode(twoButt, INPUT_PULLUP);
+	pinMode(oneButt, INPUT_PULLUP);
+	pinMode(chimeSwitch, INPUT_PULLUP);
+
+
+	//pinMode(READY_LED, OUTPUT);
+	//pinMode(SD_ERROR_LED, OUTPUT);
+	//pinMode(SMF_ERROR_LED, OUTPUT);
 	pinMode(interruptPin, OUTPUT);
 	digitalWrite(interruptPin, HIGH);
 	Serial.begin(SERIAL_RATE);
@@ -218,7 +227,7 @@ void setup(void)
 	if (!SD.begin(SD_SELECT, SPI_FULL_SPEED))
 	{
 		DEBUG("\nSD init fail!");
-		digitalWrite(SD_ERROR_LED, HIGH);
+		//digitalWrite(SD_ERROR_LED, HIGH);
 		while (true);
 	}
 
@@ -227,7 +236,86 @@ void setup(void)
 	SMF.setMidiHandler(midiCallback);
 	SMF.setSysexHandler(sysexCallback);
 
-	digitalWrite(READY_LED, HIGH);
+	//digitalWrite(READY_LED, HIGH);
+}
+
+bool oldClockButtState = false;
+bool oldStopButtState = false;
+bool oldOneButtState = false;
+bool oldTwoButtState = false;
+bool oldThreeButtState = false;
+bool oldChimeSwitchState = false;
+
+byte buttStates = 0b00000000;
+void checkButts() {
+	bool clockButtState = !digitalRead(clockButt);
+	bool stopButtState = !digitalRead(stopButt);
+	bool oneButtState = !digitalRead(oneButt);
+	bool twoButtState = !digitalRead(clockButt);
+	bool threeButtState = !digitalRead(clockButt);
+	bool chimeSwitchState = !digitalRead(chimeSwitch);
+//clock
+	if (clockButtState & !oldClockButtState) {
+		bitSet(buttStates, 0);
+		oldClockButtState = clockButtState;
+	}
+	else if (!clockButtState & oldClockButtState) {
+		oldClockButtState = clockButtState;
+		bitClear(buttStates, 0);
+	}
+//stop
+	if (stopButtState & !oldStopButtState) {
+		oldStopButtState = stopButtState;
+	}
+	else if (!stopButtState & oldStopButtState) {
+		oldStopButtState = stopButtState;
+	}
+//one
+	if (oneButtState & !oldOneButtState) {
+		oldOneButtState = oneButtState;
+	}
+	else if (!oneButtState & oldOneButtState) {
+		oldOneButtState = oneButtState;
+	}
+
+	if (twoButtState & !oldTwoButtState) {
+		oldTwoButtState = twoButtState;
+	}
+	else if (!twoButtState & oldTwoButtState) {
+		oldTwoButtState = twoButtState;
+	}
+
+	if (threeButtState & !oldThreeButtState) {
+		oldThreeButtState = threeButtState;
+	}
+	else if (!threeButtState & oldThreeButtState) {
+		oldThreeButtState = threeButtState;
+	}
+
+	if (chimeSwitchState & !oldChimeSwitchState) {
+		oldChimeSwitchState = chimeSwitchState;
+		bitSet(buttStates, 1);
+	}
+	else if (!chimeSwitchState & oldChimeSwitchState) {
+		oldChimeSwitchState = chimeSwitchState;
+	}
+
+
+	/*
+	Serial.print("clkB = ");
+	Serial.print(digitalRead(clockButt));
+	Serial.print("  stop = ");
+	Serial.print(digitalRead(stopButt));
+	Serial.print("  thrB = ");
+	Serial.print(digitalRead(threeButt));
+	Serial.print("  twoB = ");
+	Serial.print(digitalRead(twoButt));
+	Serial.print("  oneB = ");
+	Serial.print(digitalRead(oneButt));
+	Serial.print("  chmB = ");
+	Serial.print(digitalRead(chimeSwitch));
+	Serial.println();
+	*/
 }
 
 void tickMetronome(void)
@@ -236,7 +324,6 @@ void tickMetronome(void)
 	static uint32_t	lastBeatTime = 0;
 	static boolean	inBeat = false;
 	uint16_t	beatTime;
-
 	beatTime = 60000 / SMF.getTempo();		// msec/beat = ((60sec/min)*(1000 ms/sec))/(beats/min)
 	if (!inBeat)
 	{
@@ -257,58 +344,55 @@ void tickMetronome(void)
 	}
 }
 
+long unsigned int checkButtTimer = 0;
+int checkButtInterval = 10;
 void loop(void)
 {
+
+	checkButts();
+
+
+}
+
+void playTrack(int trackSelect) {
 	int  err;
-
-	for (uint8_t i = 0; i < ARRAY_SIZE(tuneList); i++)
+	DEBUG("\nFile: ");
+	DEBUG(tuneList[trackSelect]);
+	SMF.setFilename(tuneList[trackSelect]);
+	err = SMF.load();
+	if (err != -1)
 	{
-		// reset LEDs
-		digitalWrite(READY_LED, LOW);
-		digitalWrite(SD_ERROR_LED, LOW);
-
-		// use the next file name and play it
-		DEBUG("\nFile: ");
-		DEBUG(tuneList[i]);
-		SMF.setFilename(tuneList[i]);
-		err = SMF.load();
-		if (err != -1)
+		DEBUG("\nSMF load Error ");
+		DEBUG(err);
+		//digitalWrite(SMF_ERROR_LED, HIGH);
+		delay(WAIT_DELAY);
+	}
+	else
+	{
+		// play the file
+		while (!SMF.isEOF())
 		{
-			DEBUG("\nSMF load Error ");
-			DEBUG(err);
-			digitalWrite(SMF_ERROR_LED, HIGH);
-			delay(WAIT_DELAY);
-		}
-		else
-		{
-			// play the file
-			while (!SMF.isEOF())
-			{
-				if (SMF.getNextEvent())
-					tickMetronome();
-				//
-				checkTimeOut();
-				if ((prevMidiEvent < millis())&&bufferIsReady) { // if there was more than a millisecond since last event this needs to go somewhere else that is called all the time
-				
-					//DEBUG("PONG");
-					//DEBUG("  ");
-					//DEBUG("  ");
-					sendTracksBuffer();
-					bufferIsReady = false;
-					//clearTracksBuffer();
-				}
+			if (checkButtTimer + checkButtInterval < millis()) {
+				checkButts();
+				checkButtTimer = millis();
 			}
 
-			// done with this one
-			SMF.close();
-			midiSilence();
-
-			// signal finish LED with a dignified pause
-			digitalWrite(READY_LED, HIGH);
-			delay(WAIT_DELAY);
+			if (SMF.getNextEvent())
+				tickMetronome();
+			checkI2CTimeOut();
+			if ((prevMidiEvent < millis()) && bufferIsReady) { // if there was more than a millisecond since last event this needs to go somewhere else that is called all the time
+				sendTracksBuffer();
+				bufferIsReady = false;
+			}
 		}
+
+		// done with track
+		SMF.close();
+		midiSilence();
 	}
 }
+
+
 
 
 void hijackUSBMidiTrackBuffer(byte val, byte slot) {
