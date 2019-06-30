@@ -72,7 +72,7 @@ int isMutedInt = 0;
 bool bufferIsReady = false;
 unsigned long int prevMidiEvent = 0;
 
-// The files in the tune list should be located on the SD card 
+// The files in the tune list should be located on the SD car
 // or an error will occur opening the file and the next in the 
 // list will be opened (skips errors).
 char *tuneList[] =
@@ -254,7 +254,9 @@ void checkButts() {
 	bool twoButtState = !digitalRead(clockButt);
 	bool threeButtState = !digitalRead(clockButt);
 	bool chimeSwitchState = !digitalRead(chimeSwitch);
-//clock
+	//chimes
+
+	//clock
 	if (clockButtState & !oldClockButtState) {
 		bitSet(buttStates, 0);
 		oldClockButtState = clockButtState;
@@ -273,32 +275,28 @@ void checkButts() {
 //one
 	if (oneButtState & !oldOneButtState) {
 		oldOneButtState = oneButtState;
+		playTrack(0);
 	}
 	else if (!oneButtState & oldOneButtState) {
 		oldOneButtState = oneButtState;
 	}
-
+//two
 	if (twoButtState & !oldTwoButtState) {
 		oldTwoButtState = twoButtState;
+		playTrack(1);
 	}
 	else if (!twoButtState & oldTwoButtState) {
 		oldTwoButtState = twoButtState;
 	}
-
+//three
 	if (threeButtState & !oldThreeButtState) {
 		oldThreeButtState = threeButtState;
+		playTrack(2);
 	}
 	else if (!threeButtState & oldThreeButtState) {
 		oldThreeButtState = threeButtState;
 	}
 
-	if (chimeSwitchState & !oldChimeSwitchState) {
-		oldChimeSwitchState = chimeSwitchState;
-		bitSet(buttStates, 1);
-	}
-	else if (!chimeSwitchState & oldChimeSwitchState) {
-		oldChimeSwitchState = chimeSwitchState;
-	}
 
 
 	/*
