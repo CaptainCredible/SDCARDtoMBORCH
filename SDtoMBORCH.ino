@@ -60,8 +60,7 @@ int myTrack = 0;
 int myChannel = 0;
 int myData0 = 0;
 int myData1 = 0;
-unsigned int commandsBuffer[10] = { 0,0,0,0,0,0,0,0,0,0 }; //USE MUTES FOR BUTTONS!!!!!! bit 0 = resite time, bit 1 = hourly chimes on,     
-unsigned int tracksBuffer16x8[10] = { 0,0,0,0,0,0,0,0,0,0 }; //tracks 0 - 8 then currentstep then mutes
+unsigned int tracksBuffer16x8[10] = { 0,0,0,0,0,0,0,0,0,0 }; //tracks 0 - 8 then currentstep then mutes ( used for telling ubit what song is playing, and when no song is playing) 
 unsigned int midiTracksBuffer16x8[8];
 bool sentAMidiBuffer = false;
 bool isSending = false;
@@ -71,7 +70,7 @@ bool waitingForTimeOut = false;
 int isMutedInt = 0;
 bool bufferIsReady = false;
 unsigned long int prevMidiEvent = 0;
-
+bool STOP = false;
 // The files in the tune list should be located on the SD car
 // or an error will occur opening the file and the next in the 
 // list will be opened (skips errors).
@@ -254,19 +253,10 @@ void checkButts() {
 	bool twoButtState = !digitalRead(clockButt);
 	bool threeButtState = !digitalRead(clockButt);
 	bool chimeSwitchState = !digitalRead(chimeSwitch);
-	//chimes
 
-	//clock
-	if (clockButtState & !oldClockButtState) {
-		bitSet(buttStates, 0);
-		oldClockButtState = clockButtState;
-	}
-	else if (!clockButtState & oldClockButtState) {
-		oldClockButtState = clockButtState;
-		bitClear(buttStates, 0);
-	}
 //stop
 	if (stopButtState & !oldStopButtState) {
+		STOP = true;
 		oldStopButtState = stopButtState;
 	}
 	else if (!stopButtState & oldStopButtState) {
@@ -275,7 +265,12 @@ void checkButts() {
 //one
 	if (oneButtState & !oldOneButtState) {
 		oldOneButtState = oneButtState;
+		tracksBuffer16x8[9] = 1;
+
 		playTrack(0);
+		Serial.print(" TRACKSBUFFER[9] STATE = ");
+		Serial.println(tracksBuffer16x8[9]);
+
 	}
 	else if (!oneButtState & oldOneButtState) {
 		oldOneButtState = oneButtState;
@@ -283,7 +278,12 @@ void checkButts() {
 //two
 	if (twoButtState & !oldTwoButtState) {
 		oldTwoButtState = twoButtState;
+		tracksBuffer16x8[9] = 2;
+
 		playTrack(1);
+		Serial.print(" TRACKSBUFFER[9] STATE = ");
+		Serial.println(tracksBuffer16x8[9]);
+
 	}
 	else if (!twoButtState & oldTwoButtState) {
 		oldTwoButtState = twoButtState;
@@ -291,14 +291,18 @@ void checkButts() {
 //three
 	if (threeButtState & !oldThreeButtState) {
 		oldThreeButtState = threeButtState;
+		tracksBuffer16x8[9] = 3;
+
 		playTrack(2);
+		Serial.print(" TRACKSBUFFER[9] STATE = ");
+		Serial.println(tracksBuffer16x8[9]);
+
 	}
 	else if (!threeButtState & oldThreeButtState) {
 		oldThreeButtState = threeButtState;
 	}
 
-
-
+	
 	/*
 	Serial.print("clkB = ");
 	Serial.print(digitalRead(clockButt));
@@ -368,7 +372,7 @@ void playTrack(int trackSelect) {
 	else
 	{
 		// play the file
-		while (!SMF.isEOF())
+		while (!SMF.isEOF() && !STOP)
 		{
 			if (checkButtTimer + checkButtInterval < millis()) {
 				checkButts();
@@ -387,6 +391,10 @@ void playTrack(int trackSelect) {
 		// done with track
 		SMF.close();
 		midiSilence();
+		Serial.println("STOPPED!");
+		STOP = false;
+		tracksBuffer16x8[9] = 0;
+		sendTracksBuffer();
 	}
 }
 

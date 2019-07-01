@@ -96,6 +96,8 @@ void requestEvent() {  //this is what happens when the microbit asks for a messa
 	Serial.println(tracksBuffer16x8[0]);
 	Serial.println(tracksBuffer16x8[1]);
 	Serial.println(tracksBuffer16x8[2]);
+	Serial.println();
+	Serial.println(tracksBuffer16x8[9]);
 	clearTracksBuffer();
 	bufferIsReady = false;
 }
@@ -106,15 +108,15 @@ void clearTracksBuffer() {
 	}
 }
 
-void clearCommandsBuffer() {
-	for (byte i = 0; i < 8; i++) {								//for every channel entry in buffer
-		commandsBuffer[i] = 0;							// clear buffer
-	}
-}
+//void clearCommandsBuffer() {
+//	for (byte i = 0; i < 8; i++) {								//for every channel entry in buffer
+//		commandsBuffer[i] = 0;							// clear buffer
+//	}
+//}
 
 void clearMidiTracksBuffer() {									//also sets sentAMidiBuffer to false
 	for (byte i = 0; i < 8; i++) {								//for every channel entry in buffer
-		midiTracksBuffer16x8[i] = 0;							// clear buffer
+//		midiTracksBuffer16x8[i] = 0;							// clear buffer
 	}
 	sentAMidiBuffer = false;									//set flag back to normal buffers.
 }
@@ -138,7 +140,7 @@ void triggerImmediately(byte track, byte note) {
 
 void sendMutes() {
 	if (!waitingForTimeOut) {
-		midiTracksBuffer16x8[9] = isMutedInt;
+		//midiTracksBuffer16x8[9] = isMutedInt;
 		sendUsbMidiPackage();
 	}
 }
