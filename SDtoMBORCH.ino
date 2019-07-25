@@ -146,7 +146,7 @@ void midiCallback(midi_event *pev)
 }
 
 void handleMidiFileEvent(int Ch, int data0, int data1) {
-	if (Ch < 8) {
+	if (Ch < 7) {
 		if (data0 == 144) { //is a note on
 			if (data1 < 16) {
 				DEBUG("DATA1 = ");
@@ -162,6 +162,15 @@ void handleMidiFileEvent(int Ch, int data0, int data1) {
 				prevMidiEvent = millis();
 			}
 		}
+	}
+
+	// VERIFY THIS ZIM ZAM CODE!!!
+	else if (Ch == 7) {
+		tracksBuffer16x8[7] = tracksBuffer16x8[7] | data1;
+	}
+	else if (Ch == 8) {
+		data1 = data1 << 8;
+		tracksBuffer16x8[7] = tracksBuffer16x8[7] | data1;
 	}
 }
 
@@ -265,11 +274,11 @@ void checkButts() {
 //one
 	if (oneButtState & !oldOneButtState) {
 		oldOneButtState = oneButtState;
-		tracksBuffer16x8[9] = 1;
+		//tracksBuffer16x8[9] = 1;
 
 		playTrack(0);
-		Serial.print(" TRACKSBUFFER[9] STATE = ");
-		Serial.println(tracksBuffer16x8[9]);
+		//Serial.print(" TRACKSBUFFER[9] STATE = ");
+		//Serial.println(tracksBuffer16x8[9]);
 
 	}
 	else if (!oneButtState & oldOneButtState) {
@@ -278,11 +287,11 @@ void checkButts() {
 //two
 	if (twoButtState & !oldTwoButtState) {
 		oldTwoButtState = twoButtState;
-		tracksBuffer16x8[9] = 2;
+		//tracksBuffer16x8[9] = 2;
 
 		playTrack(1);
-		Serial.print(" TRACKSBUFFER[9] STATE = ");
-		Serial.println(tracksBuffer16x8[9]);
+		//Serial.print(" TRACKSBUFFER[9] STATE = ");
+		//Serial.println(tracksBuffer16x8[9]);
 
 	}
 	else if (!twoButtState & oldTwoButtState) {
@@ -291,11 +300,11 @@ void checkButts() {
 //three
 	if (threeButtState & !oldThreeButtState) {
 		oldThreeButtState = threeButtState;
-		tracksBuffer16x8[9] = 3;
+		//tracksBuffer16x8[9] = 3;
 
 		playTrack(2);
-		Serial.print(" TRACKSBUFFER[9] STATE = ");
-		Serial.println(tracksBuffer16x8[9]);
+		//Serial.print(" TRACKSBUFFER[9] STATE = ");
+		//Serial.println(tracksBuffer16x8[9]);
 
 	}
 	else if (!threeButtState & oldThreeButtState) {
@@ -393,7 +402,7 @@ void playTrack(int trackSelect) {
 		midiSilence();
 		Serial.println("STOPPED!");
 		STOP = false;
-		tracksBuffer16x8[9] = 0;
+		//tracksBuffer16x8[9] = 0;
 		sendTracksBuffer();
 	}
 }

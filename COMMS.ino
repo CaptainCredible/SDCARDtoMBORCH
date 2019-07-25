@@ -97,7 +97,7 @@ void requestEvent() {  //this is what happens when the microbit asks for a messa
 	Serial.println(tracksBuffer16x8[1]);
 	Serial.println(tracksBuffer16x8[2]);
 	Serial.println();
-	Serial.println(tracksBuffer16x8[9]);
+	//Serial.println(tracksBuffer16x8[9]);
 	clearTracksBuffer();
 	bufferIsReady = false;
 }
