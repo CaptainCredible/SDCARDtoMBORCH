@@ -18,7 +18,7 @@
 #define clockButt 5U
 #define stopButt  6U
 #define threeButt  7U
-#define twoButt  8U
+#define twoButt  8
 #define oneButt  19U
 #define chimeSwitch 4U
 
@@ -49,7 +49,7 @@
 //#define READY_LED     7 // when finished
 //#define SMF_ERROR_LED 6 // SMF error
 //#define SD_ERROR_LED  5 // SD error
-#define BEAT_LED      18 // toggles to the 'beat'
+#define BEAT_LED      5 // toggles to the 'beat'
 
 #define WAIT_DELAY    2000 // ms
 
@@ -60,6 +60,8 @@ int myTrack = 0;
 int myChannel = 0;
 int myData0 = 0;
 int myData1 = 0;
+bool isPlaying = false;
+bool beatledOn = true; 
 unsigned int tracksBuffer16x8[10] = { 0,0,0,0,0,0,0,0,0,0 }; //tracks 0 - 8 then currentstep then mutes ( used for telling ubit what song is playing, and when no song is playing) 
 unsigned int midiTracksBuffer16x8[8];
 bool sentAMidiBuffer = false;
@@ -76,28 +78,9 @@ bool STOP = false;
 // list will be opened (skips errors).
 char *tuneList[] =
 {
-	"bass.mid",
-	"test.mid"
-
-	//"LOOPDEMO.MID",  // simplest and shortest file
-	//"ELISE.MID",
-	//"TWINKLE.MID",
-	//"GANGNAM.MID",
-	//"FUGUEGM.MID",
-	//"POPCORN.MID",
-	//"AIR.MID",
-	//"PRDANCER.MID",
-	//"MINUET.MID",
-	//"FIRERAIN.MID",
-	//"MOZART.MID",
-	//"FERNANDO.MID",
-	//"SONATAC.MID",
-	//"SKYFALL.MID",
-	//"XMAS.MID",
-	//"GBROWN.MID",
-	//"PROWLER.MID",
-	//"IPANEMA.MID",
-	//"JZBUMBLE.MID",
+	"One.mid",
+	"Two.mid",
+	"Three.mid"
 };
 
 // These don't play as they need more than 16 tracks but will run if MIDIFile.h is changed
@@ -139,38 +122,69 @@ void midiCallback(midi_event *pev)
 	myTrack = pev->track;
 	myChannel = pev->channel;
 	myData0 = pev->data[0];
-	myData1 = pev->data[1] % 16;
+	myData1 = pev->data[1];
 	if (myTrack == 0) {
 		handleMidiFileEvent(myChannel, myData0, myData1);
 	}
 }
 
+unsigned long int ledTimer = 0;
 void handleMidiFileEvent(int Ch, int data0, int data1) {
 	if (Ch < 7) {
+	//if (false){
+		Serial.print("Channel ");
+		Serial.println(Ch);
 		if (data0 == 144) { //is a note on
+			digitalWrite(BEAT_LED, HIGH);
+			beatledOn = true;
+			ledTimer = millis();
+			data1 = data1 % 16;
 			if (data1 < 16) {
-				DEBUG("DATA1 = ");
-				DEBUG(data1);
+				//DEBUG("DATA1 = ");
+				//DEBUG(data1);
 				int val = 0b0000000000000001 << data1;
 				//tracksBuffer16x8[Ch] = tracksBuffer16x8[Ch] | val;
 				bitSet(tracksBuffer16x8[Ch], data1);
 				bufferIsReady = true;
-				DEBUG("BUFFER CH = ");
-				DEBUG(Ch);
-				DEBUG("   ...   ");
-				Serial.println(tracksBuffer16x8[Ch], BIN);
+				//DEBUG("BUFFER CH = ");
+				//DEBUG(Ch);
+				//DEBUG("   ...   ");
+				//Serial.println(tracksBuffer16x8[Ch], BIN);
 				prevMidiEvent = millis();
 			}
 		}
 	}
 
+	
+	 
 	// VERIFY THIS ZIM ZAM CODE!!!
 	else if (Ch == 7) {
-		tracksBuffer16x8[7] = tracksBuffer16x8[7] | data1;
+		if (data0 == 144) { //is a note on
+			DEBUG("ZIM?  ");
+			//DEBUG(data1);
+			uint16_t myUintData = data1;
+			tracksBuffer16x8[7] = tracksBuffer16x8[7] & 0b1111111100000000; //clear prev vals
+			tracksBuffer16x8[7] = tracksBuffer16x8[7] | myUintData;
+			bufferIsReady = true;
+			prevMidiEvent = millis();
+			Serial.println(myUintData);
+			//	Serial.println(tracksBuffer16x8[7], BIN);
+		}
 	}
 	else if (Ch == 8) {
-		data1 = data1 << 8;
-		tracksBuffer16x8[7] = tracksBuffer16x8[7] | data1;
+		if (data0 == 144) { //is a note on
+			DEBUG("ZAM?  ");
+			//DEBUG(data1);
+			uint16_t myUintData = data1;
+
+
+			tracksBuffer16x8[7] = tracksBuffer16x8[7] & 0b0000000011111111; //clear prev vals
+			tracksBuffer16x8[7] = tracksBuffer16x8[7] | (myUintData << 8);
+			bufferIsReady = true;
+			prevMidiEvent = millis();
+			Serial.println(myUintData);
+			//	Serial.println(tracksBuffer16x8[7], BIN);
+		}
 	}
 }
 
@@ -218,6 +232,7 @@ void setup(void)
 	pinMode(twoButt, INPUT_PULLUP);
 	pinMode(oneButt, INPUT_PULLUP);
 	pinMode(chimeSwitch, INPUT_PULLUP);
+	pinMode(BEAT_LED, OUTPUT);
 
 
 	//pinMode(READY_LED, OUTPUT);
@@ -259,9 +274,15 @@ void checkButts() {
 	bool clockButtState = !digitalRead(clockButt);
 	bool stopButtState = !digitalRead(stopButt);
 	bool oneButtState = !digitalRead(oneButt);
-	bool twoButtState = !digitalRead(clockButt);
-	bool threeButtState = !digitalRead(clockButt);
+	bool twoButtState = !digitalRead(twoButt);
+	bool threeButtState = !digitalRead(threeButt);
 	bool chimeSwitchState = !digitalRead(chimeSwitch);
+	if (beatledOn) {
+		if (millis() > (ledTimer + 100)) {
+			digitalWrite(BEAT_LED, LOW);
+	}
+	
+	}
 
 //stop
 	if (stopButtState & !oldStopButtState) {
@@ -271,46 +292,49 @@ void checkButts() {
 	else if (!stopButtState & oldStopButtState) {
 		oldStopButtState = stopButtState;
 	}
-//one
-	if (oneButtState & !oldOneButtState) {
-		oldOneButtState = oneButtState;
-		//tracksBuffer16x8[9] = 1;
+	if (!isPlaying) {
 
-		playTrack(0);
-		//Serial.print(" TRACKSBUFFER[9] STATE = ");
-		//Serial.println(tracksBuffer16x8[9]);
 
+		//one
+		if (oneButtState & !oldOneButtState) {
+			oldOneButtState = oneButtState;
+			//tracksBuffer16x8[9] = 1;
+
+			playTrack(0);
+			//Serial.print(" TRACKSBUFFER[9] STATE = ");
+			//Serial.println(tracksBuffer16x8[9]);
+
+		}
+		else if (!oneButtState & oldOneButtState) {
+			oldOneButtState = oneButtState;
+		}
+		//two
+		if (twoButtState & !oldTwoButtState) {
+			oldTwoButtState = twoButtState;
+			//tracksBuffer16x8[9] = 2;
+			DEBUG("TWOBUTT!!!");
+			playTrack(1);
+			//Serial.print(" TRACKSBUFFER[9] STATE = ");
+			//Serial.println(tracksBuffer16x8[9]);
+
+		}
+		else if (!twoButtState & oldTwoButtState) {
+			oldTwoButtState = twoButtState;
+		}
+		//three
+		if (threeButtState & !oldThreeButtState) {
+			oldThreeButtState = threeButtState;
+			//tracksBuffer16x8[9] = 3;
+
+			playTrack(2);
+			//Serial.print(" TRACKSBUFFER[9] STATE = ");
+			//Serial.println(tracksBuffer16x8[9]);
+
+		}
+		else if (!threeButtState & oldThreeButtState) {
+			oldThreeButtState = threeButtState;
+		}
 	}
-	else if (!oneButtState & oldOneButtState) {
-		oldOneButtState = oneButtState;
-	}
-//two
-	if (twoButtState & !oldTwoButtState) {
-		oldTwoButtState = twoButtState;
-		//tracksBuffer16x8[9] = 2;
-
-		playTrack(1);
-		//Serial.print(" TRACKSBUFFER[9] STATE = ");
-		//Serial.println(tracksBuffer16x8[9]);
-
-	}
-	else if (!twoButtState & oldTwoButtState) {
-		oldTwoButtState = twoButtState;
-	}
-//three
-	if (threeButtState & !oldThreeButtState) {
-		oldThreeButtState = threeButtState;
-		//tracksBuffer16x8[9] = 3;
-
-		playTrack(2);
-		//Serial.print(" TRACKSBUFFER[9] STATE = ");
-		//Serial.println(tracksBuffer16x8[9]);
-
-	}
-	else if (!threeButtState & oldThreeButtState) {
-		oldThreeButtState = threeButtState;
-	}
-
 	
 	/*
 	Serial.print("clkB = ");
@@ -341,7 +365,7 @@ void tickMetronome(void)
 		if ((millis() - lastBeatTime) >= beatTime)
 		{
 			lastBeatTime = millis();
-			digitalWrite(BEAT_LED, HIGH);
+///			digitalWrite(BEAT_LED, HIGH);
 			inBeat = true;
 		}
 	}
@@ -349,7 +373,7 @@ void tickMetronome(void)
 	{
 		if ((millis() - lastBeatTime) >= 100)	// keep the flash on for 100ms only
 		{
-			digitalWrite(BEAT_LED, LOW);
+	///		digitalWrite(BEAT_LED, LOW);
 			inBeat = false;
 		}
 	}
@@ -366,6 +390,7 @@ void loop(void)
 }
 
 void playTrack(int trackSelect) {
+	isPlaying = true;
 	int  err;
 	DEBUG("\nFile: ");
 	DEBUG(tuneList[trackSelect]);
@@ -402,6 +427,7 @@ void playTrack(int trackSelect) {
 		midiSilence();
 		Serial.println("STOPPED!");
 		STOP = false;
+		isPlaying = false;
 		//tracksBuffer16x8[9] = 0;
 		sendTracksBuffer();
 	}

@@ -58,7 +58,7 @@ void sendTracksBuffer() {
 	//i2cTimer = micros();
 	isSending = true;
 	timeOutStamp = millis();
-	Serial.println("requested i2c");
+	//Serial.println("requested i2c");
 }
 
 void sendUsbMidiPackage() {
@@ -93,10 +93,12 @@ void requestEvent() {  //this is what happens when the microbit asks for a messa
 	isSending = false;
 	digitalWrite(interruptPin, HIGH);
 	Serial.println("handled i2c");
-	Serial.println(tracksBuffer16x8[0]);
-	Serial.println(tracksBuffer16x8[1]);
-	Serial.println(tracksBuffer16x8[2]);
+	//Serial.println(tracksBuffer16x8[0]);
+	//Serial.println(tracksBuffer16x8[1]);
+	Serial.print("Buffer 7 = ");
+	Serial.println(tracksBuffer16x8[7]);
 	Serial.println();
+	//Serial.println();
 	//Serial.println(tracksBuffer16x8[9]);
 	clearTracksBuffer();
 	bufferIsReady = false;
