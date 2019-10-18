@@ -6,7 +6,7 @@
 //  SD card interface - change SD_SELECT for SPI comms
 //  Change pin definitions for specific hardware setup - defined below.
 
-
+#define DEBUGMODE
 
 #include <SdFat.h>
 #include <MD_MIDIFile.h>
@@ -27,15 +27,16 @@
 #define DEBUG(x)
 #define DEBUGX(x)
 #define SERIAL_RATE 31250
+#endif
 
-#else // don't use MIDI to allow printing debug statements
-
-
+#ifdef DEBUGMODE // don't use MIDI to allow printing debug statements
 
 #define DEBUG(x)  Serial.print(x)
 #define DEBUGX(x) Serial.print(x, HEX)
 #define SERIAL_RATE 57600
-
+#else 
+#define DEBUG(x)
+#define DEBUGX(x)
 #endif // USE_MIDI
 
 
@@ -56,6 +57,8 @@
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
 #define interruptPin 9
 
+
+byte selectedTrack = 0;
 int myTrack = 0;
 int myChannel = 0;
 int myData0 = 0;
@@ -223,7 +226,7 @@ void midiSilence(void)
 		midiCallback(&ev);
 }
 
-void setup(void)
+void setup()
 {
 	// Set up LED pins
 	pinMode(clockButt, INPUT_PULLUP);
@@ -233,6 +236,7 @@ void setup(void)
 	pinMode(oneButt, INPUT_PULLUP);
 	pinMode(chimeSwitch, INPUT_PULLUP);
 	pinMode(BEAT_LED, OUTPUT);
+	pinMode(SD_SELECT, OUTPUT);
 
 
 	//pinMode(READY_LED, OUTPUT);
@@ -240,25 +244,30 @@ void setup(void)
 	//pinMode(SMF_ERROR_LED, OUTPUT);
 	pinMode(interruptPin, OUTPUT);
 	digitalWrite(interruptPin, HIGH);
-	Serial.begin(SERIAL_RATE);
+	Serial.begin(128000);
 
-	DEBUG("\n[MidiFile Play List]");
+	
 	Wire.begin(8);                // join i2c bus with address #8
 	Wire.onRequest(requestEvent); // register event
+	Wire.onReceive(handleWireReceive);
 
 	// Initialize SD
+	delay(1100);
+	DEBUG("HELLO!");
+	delay(300);
+
 	if (!SD.begin(SD_SELECT, SPI_FULL_SPEED))
 	{
 		DEBUG("\nSD init fail!");
 		//digitalWrite(SD_ERROR_LED, HIGH);
 		while (true);
 	}
-
+	DEBUG("SDCARD INIT SUCCESS");
+	delay(300);
 	// Initialize MIDIFile
 	SMF.begin(&SD);
 	SMF.setMidiHandler(midiCallback);
 	SMF.setSysexHandler(sysexCallback);
-
 	//digitalWrite(READY_LED, HIGH);
 }
 
@@ -271,43 +280,56 @@ bool oldChimeSwitchState = false;
 
 byte buttStates = 0b00000000;
 void checkButts() {
-	bool clockButtState = !digitalRead(clockButt);
-	bool stopButtState = !digitalRead(stopButt);
+	//bool clockButtState = !digitalRead(clockButt);
+	//bool stopButtState = !digitalRead(stopButt);
 	bool oneButtState = !digitalRead(oneButt);
-	bool twoButtState = !digitalRead(twoButt);
-	bool threeButtState = !digitalRead(threeButt);
-	bool chimeSwitchState = !digitalRead(chimeSwitch);
+	//bool twoButtState = !digitalRead(twoButt);
+	//bool threeButtState = !digitalRead(threeButt);
+	//bool chimeSwitchState = !digitalRead(chimeSwitch);
 	if (beatledOn) {
 		if (millis() > (ledTimer + 100)) {
 			digitalWrite(BEAT_LED, LOW);
-	}
+		}
 	
 	}
 
-//stop
-	if (stopButtState & !oldStopButtState) {
-		STOP = true;
-		oldStopButtState = stopButtState;
-	}
-	else if (!stopButtState & oldStopButtState) {
-		oldStopButtState = stopButtState;
-	}
-	if (!isPlaying) {
 
-
-		//one
+	//Serial.println("hello");
 		if (oneButtState & !oldOneButtState) {
 			oldOneButtState = oneButtState;
-			//tracksBuffer16x8[9] = 1;
+			if (!isPlaying) {
+				DEBUG(selectedTrack);
+				playTrack(selectedTrack);
+			} else {
+				STOP = true;
+				selectedTrack++;
+				selectedTrack = selectedTrack % 3;
+				DEBUG(selectedTrack);
+			}
 
-			playTrack(0);
-			//Serial.print(" TRACKSBUFFER[9] STATE = ");
-			//Serial.println(tracksBuffer16x8[9]);
 
 		}
 		else if (!oneButtState & oldOneButtState) {
 			oldOneButtState = oneButtState;
 		}
+
+		//stop
+		/*
+		if (stopButtState & !oldStopButtState) {
+		STOP = true;
+		oldStopButtState = stopButtState;
+		}
+		else if (!stopButtState & oldStopButtState) {
+		oldStopButtState = stopButtState;
+		}
+		*/
+
+		//if (!isPlaying) {
+
+
+		//one
+
+		/*
 		//two
 		if (twoButtState & !oldTwoButtState) {
 			oldTwoButtState = twoButtState;
@@ -334,7 +356,8 @@ void checkButts() {
 		else if (!threeButtState & oldThreeButtState) {
 			oldThreeButtState = threeButtState;
 		}
-	}
+		*/
+	//}
 	
 	/*
 	Serial.print("clkB = ");
@@ -383,7 +406,7 @@ long unsigned int checkButtTimer = 0;
 int checkButtInterval = 10;
 void loop(void)
 {
-
+	//Serial.println("YOLO");
 	checkButts();
 
 

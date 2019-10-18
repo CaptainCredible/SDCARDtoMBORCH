@@ -104,6 +104,12 @@ void requestEvent() {  //this is what happens when the microbit asks for a messa
 	bufferIsReady = false;
 }
 
+void handleWireReceive(int numbar) {
+//	numbar = numbar % 3;
+//	selectedTrack = numbar;
+//	DEBUG(numbar);
+}
+
 void clearTracksBuffer() {
 	for (byte i = 0; i < 8; i++) {								//for every channel entry in buffer
 		tracksBuffer16x8[i] = 0;							// clear buffer
